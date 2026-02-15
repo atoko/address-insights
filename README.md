@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Public URL
+`https://address-insights-flax.vercel.app`
 
-## Getting Started
+# Problem solving
 
-First, run the development server:
+## API 
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Given the requirements to search for nearby points, I chose LocationIQ as the api provider for this project. We will use the Forward Geocoding and the Points of Interest APIs. These apis will be accessed server-side, to prevent abuse of the api key.
+
+## Web application
+
+The web application will be structured as two separate pages. One page will contain a search box and the other will load the given address via query parameters.
+
+The insights page will then load the given address into the Forward Geocoding service. 
+
+## Features 
+
+Once we have the latitude and longitude, we can use the Points of Interest api to load additional information to display. 
+
+We will load the points of interest and calculate a ratio of items that are >0.35 mile in distance. This ratio will give us our walking score, and driving scores.  We will then give it a urban/suburban index depending on which score is highest.
+
+# What I built
+
+## Search Page
+
+The search page consists of an form with an input field and a combobox. The form once submitted saves the entered address into history and navigates the user to the details page. 
+
+### Search history
+
+I instructed Gemini to 
+```
+Implement a history API. This is intended to store a list of strings in localstorage, and provide a way to append and delete at index
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+It generated appropriate tests (`history.test.ts`) and was easy to integrate with the existing search page.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Details Page
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The details page contains two main components, the score overlay and the map. 
 
-## Learn More
+### Loading details
 
-To learn more about Next.js, take a look at the following resources:
+I created a server function that receives an address as input and proxies the response from the LocationIQ api. This approach uses `<Suspense>` to keep the initial navigation fast, and the data is streamed to the details page.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Map
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+I implemented `react-maplibre` and used a free open source tileset. The component loads the details of the given address (latitude and longitude) and centers the map at the resulting coordinates.
 
-## Deploy on Vercel
+#### Populating the points of interest
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Instructed Gemini to copy the existing implementation of the `forward-locate` and create a `nearby` API that proxies the LocationIQ points of interest API.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Code was generated for fetching, then listing the pois and rendering them on the map.
+
+### Score overlay
+
+The score overlay is calculated by obtaining the ratio of pois that are farther than 0.35 mile (12 minute walk) using haversine distance. This gives us an estimate of how many locations are within walking distance vs driving distance. 
+
+#### Details
+
+The distance is obtained using `calculate-distance-between-coordinates`, and we divide the nearby items by the total. We then use the inverse for the driving score. 
+
+
